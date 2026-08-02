@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 本地 HTTPS 证书（不要上传，HF 自动提供 HTTPS）
+certs/
+
+# 运行期上传的 BGM（HF 临时磁盘会被清空，无需入库）
+backend/uploads/
+
+# 演示截图等本地文件
+sim_*.png
+preview*.png
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db

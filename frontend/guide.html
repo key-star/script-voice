@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手机语音配置说明</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #12141a; color: #e8eaf0; line-height: 1.7;
+    padding: 16px 16px 60px;
+  }
+  h1 { font-size: 20px; margin: 8px 0 4px; }
+  .sub { color: #9aa1b5; font-size: 13px; margin-bottom: 18px; }
+  .step {
+    background: #1b1e27; border: 1px solid #2a2e3d; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 14px;
+  }
+  .step h2 { font-size: 15px; margin-bottom: 8px; color: #7ec4ff; }
+  .step p, .step li { font-size: 13px; color: #c6ccda; }
+  .step ul { padding-left: 18px; }
+  .step li { margin: 3px 0; }
+  code, .url {
+    background: #262b38; border-radius: 6px; padding: 1px 6px;
+    font-size: 12px; color: #ffd479; word-break: break-all;
+  }
+  .url { display: block; padding: 8px 10px; margin: 8px 0; border: 1px dashed #4a4f63; }
+  .btn {
+    display: inline-block; background: #2f6fdf; color: #fff; text-decoration: none;
+    padding: 9px 16px; border-radius: 8px; font-size: 14px; margin-top: 8px;
+  }
+  .warn {
+    background: #3a2c17; border: 1px solid #6b5222; color: #ffcf8a;
+    border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 14px;
+  }
+  .ok { color: #7ee0a1; }
+</style>
+</head>
+<body>
+  <h1>📱 手机语音配置说明</h1>
+  <p class="sub">只需每台手机做一次（约 1 分钟），之后开麦免 AppID</p>
+
+  <div class="warn">
+    ⚠️ 手机必须和电脑连<strong>同一个 WiFi</strong>。语音数据在局域网内点对点传输，无需流量。
+  </div>
+
+  <div class="step">
+    <h2>第 0 步：记住这个地址</h2>
+    <p>开麦请用下面的 HTTPS 地址（普通 http 会被浏览器禁掉麦克风）：</p>
+    <code class="url" id="https-url">__HTTPS_URL__</code>
+    <p>手机直接点这个链接打不开时，请手动在浏览器输入以上地址（注意是 <code>https</code> 开头）。</p>
+  </div>
+
+  <div class="step">
+    <h2>第 1 步：下载并安装证书</h2>
+    <p>先用普通 http 地址访问一次（不用装证书也能看）：</p>
+    <code class="url">__HTTP_URL__</code>
+    <p>下载 CA 证书：<a class="btn" href="/certs/ca.crt">⬇️ 点我下载 ca.crt</a></p>
+  </div>
+
+  <div class="step">
+    <h2>第 2 步：安卓安装证书</h2>
+    <ul>
+      <li>打开 <strong>设置 → 安全 → 加密与凭据</strong>（部分机型在「更多安全设置」里）</li>
+      <li>选 <strong>安装证书 → CA 证书</strong>，选择刚才下载的 <code>ca.crt</code></li>
+      <li>安卓 11+ 还需：进入该证书后，打开「CA 证书用于浏览器/应用」的信任开关</li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <h2>第 2 步：iPhone 安装证书</h2>
+    <ul>
+      <li>用 <strong>Safari</strong> 打开上面的 http 地址，点下载 <code>ca.crt</code></li>
+      <li>进 <strong>设置 → 已下载的描述文件</strong> → 安装</li>
+      <li>再进 <strong>设置 → 通用 → 关于本机 → 证书信任设置</strong></li>
+      <li>打开「__LAN_IP__ 的证书」的<strong>完全信任</strong>开关（这步很多人漏掉）</li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <h2>第 3 步：开麦</h2>
+    <p>
+      打开第 0 步的 HTTPS 地址 → 进入大厅 → 进房 → 点 <strong>🎤 上麦</strong> →
+      浏览器弹出麦克风权限时选<strong>允许</strong> → 点「🔊 连接语音」。
+    </p>
+    <p class="ok">绿灯亮起、头像出现🔊 = 可以说话了！</p>
+  </div>
+
+  <script>
+    var u = document.getElementById('https-url');
+    var link = u.textContent.trim();
+    if (location.protocol === 'https:') { u.textContent = '（当前页面已是 HTTPS，地址：' + link + '）'; }
+  </script>
+</body>
+</html>
