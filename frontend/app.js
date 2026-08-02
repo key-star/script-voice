@@ -1235,12 +1235,20 @@ function bindEvents() {
   $('appid-input').addEventListener('keydown', e => { if (e.key === 'Enter') closeSettings(); });
 
   $('btn-leave-room').onclick = () => {
-    if (state.ws) state.ws.close();
-    if (state.rtc.adapter) leaveVoice();
-    state.wsRetry = 99;
-    $('room-screen').classList.add('hidden');
-    $('login-screen').classList.remove('hidden');
-    refreshRooms();
+    state.wsRetry = 99;   // 立即锁死重连，防止服务端断开后自动重连重新进房
+    const doLeave = () => {
+      if (state.ws) state.ws.close();
+      if (state.rtc.adapter) leaveVoice();
+      $('room-screen').classList.add('hidden');
+      $('login-screen').classList.remove('hidden');
+      refreshRooms();
+    };
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+      try { state.ws.send(JSON.stringify({ type: 'leave' })); } catch (e) {}
+      setTimeout(doLeave, 300);
+    } else {
+      doLeave();
+    }
   };
 
   $('room-list').addEventListener('click', e => {

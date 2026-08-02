@@ -551,6 +551,15 @@ async def ws_endpoint(ws: WebSocket, room_id: str):
             elif kind == 'ping':
                 await ws.send_json({'type': 'pong', 'ts': time.time()})
 
+            # 主动离开房间：释放麦位并移出房间（区别于意外断线的 mark_offline）
+            elif kind == 'leave':
+                if my_uid in room.users:
+                    name = user.name
+                    GAME.remove_user(room, my_uid)
+                    await broadcast(room_id, {'type': 'notice', 'text': f'{name} 离开了房间'})
+                    await broadcast_state(room_id)
+                break
+
     except WebSocketDisconnect:
         pass
     except Exception:
