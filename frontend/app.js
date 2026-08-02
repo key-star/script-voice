@@ -1293,9 +1293,31 @@ function bindEvents() {
   $('btn-close-claim').onclick = () => $('claim-modal').classList.add('hidden');
 }
 
+// 弹窗打开时锁住页面滚动（老 iOS 不支持 overscroll-behavior 的兜底）
+function setupScrollLock() {
+  const modals = ['settings-modal', 'role-modal', 'claim-modal', 'vote-modal']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if (!modals.length) return;
+  const apply = () => {
+    const anyOpen = modals.some(m => !m.classList.contains('hidden'));
+    if (anyOpen) {
+      const bar = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = bar > 0 ? bar + 'px' : '';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+  };
+  modals.forEach(m => {
+    new MutationObserver(apply).observe(m, { attributes: true, attributeFilter: ['class'] });
+  });
+}
+
 // ---------------- 启动 ----------------
 function init() {
   bindEvents();
+  setupScrollLock();
   $('login-name').value = state.name;
   refreshRooms();
 }
