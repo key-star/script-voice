@@ -43,7 +43,9 @@ class AgoraAdapter extends RTCAdapter {
       });
       await client.join(this.appId, roomId, null, this.uid);
       this.track = await AgoraRTC.createMicrophoneAudioTrack();
-      await client.setAudioProfile('speech_standard');
+      if (typeof client.setAudioProfile === 'function') {
+        try { await client.setAudioProfile('speech_standard'); } catch (e) {}
+      }
       await client.publish([this.track]);
       this.joined = true;
       this._emitStatus('云端语音已连接（声网）');
