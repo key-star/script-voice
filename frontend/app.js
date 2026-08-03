@@ -30,6 +30,12 @@ const state = {
   rtc: { adapter: null },
   voiceBusy: false,
   timerTicker: null,
+  prevStage: null,          // 上一次收到的房间阶段，用于检测阶段切换
+  voiceStagePause: false,   // 阅读阶段全场静默：已自动断开语音
+  lastActivity: Date.now(), // 最近一次用户操作时间（挂机检测）
+  voiceIdlePaused: false,   // 已因挂机自动断开语音
+  voiceIdlePauseAt: 0,      // 挂机断开的时间点
+  idleTimer: null,
 };
 
 // ---------------- 工具 ----------------
@@ -182,10 +188,15 @@ function onEntered(msg) {
   $('room-name').textContent = msg.room.name;
   $('room-id').textContent = msg.room.id;
   if (state.room.viewer_is_dm) loadScriptLib();
+  state.prevStage = state.room.stage;
   render();
   renderVoiceButton();
-  // 进入房间即自动连接语音
-  connectVoiceIfPossible();
+  // 进入房间即自动连接语音；若已在阅读阶段（全场静默），所有人（含 OB）暂不连，下一阶段自动接入
+  if (state.room.stage === 'reading') {
+    state.voiceStagePause = true;
+  } else {
+    connectVoiceIfPossible();
+  }
 }
 
 async function loadScriptLib() {
@@ -197,16 +208,47 @@ async function loadScriptLib() {
 }
 
 function applyState(msg) {
+  const prevStage = state.prevStage || null;
+  state.prevStage = msg.room.stage;
   state.room = msg.room;
   state.users = msg.users;
   state.me = msg.users[state.uid] || null;
   $('room-name').textContent = msg.room.name;
   $('room-id').textContent = msg.room.id;
+  handleVoiceStage(prevStage, msg.room.stage);
+  handleRoomEmpty();
   render();
   syncVoice();
   syncBgm();
   if (state.rtc.adapter) state.rtc.adapter.syncPeers(Object.values(state.users));
   maybeShowRole();
+}
+
+// 房间内无人：强制断开声网链接。玩家重新进入房间时由 onEntered 自行重连（谁进入谁连，不是全员重连）。
+function handleRoomEmpty() {
+  const anyOnline = Object.values(state.users).some(u => u.online);
+  if (!anyOnline && state.rtc.adapter && state.rtc.adapter.joined) {
+    toast('🏠 房间内无人，语音已断开');
+    leaveVoice();
+  }
+}
+
+// 阅读阶段全场静默：房间内所有人（含 OB）自动断开语音；进入下一阶段全员自动接入（挂机中的除外）。
+function handleVoiceStage(prevStage, stage) {
+  if (prevStage === stage || !state.me) return;
+  if (stage === 'reading') {
+    state.voiceStagePause = true;
+    if (state.rtc.adapter && state.rtc.adapter.joined) {
+      toast('📖 进入阅读阶段，全场静默，语音已断开');
+      leaveVoice();
+    }
+  } else if (prevStage === 'reading' && state.voiceStagePause && !state.voiceIdlePaused) {
+    state.voiceStagePause = false;
+    if (!(state.rtc.adapter && state.rtc.adapter.joined)) {
+      toast('💬 已离开阅读阶段，语音自动重连');
+      connectVoiceIfPossible();
+    }
+  }
 }
 
 // ---------------- 渲染 ----------------
@@ -1008,6 +1050,38 @@ async function leaveVoice() {
   renderVoiceButton();
 }
 
+// ---------------- 挂机检测（检测到玩家离开/挂机，自动断开频道，无需手动点） ----------------
+const IDLE_AFK_TIMEOUT = 10 * 60 * 1000;   // 连续无操作多少毫秒视为挂机（可按需调整）
+const IDLE_CHECK_INTERVAL = 30 * 1000;     // 每 30 秒检查一次
+
+function setupIdleDetect() {
+  const evts = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'];
+  evts.forEach(t => window.addEventListener(t, markActivity, { passive: true }));
+  state.idleTimer = setInterval(checkIdle, IDLE_CHECK_INTERVAL);
+}
+
+function markActivity() { state.lastActivity = Date.now(); }
+
+function checkIdle() {
+  const joined = !!(state.rtc.adapter && state.rtc.adapter.joined);
+  const idleMs = Date.now() - state.lastActivity;
+  if (joined && idleMs >= IDLE_AFK_TIMEOUT) {
+    // 检测到挂机/离开：断开频道
+    state.voiceIdlePaused = true;
+    state.voiceIdlePauseAt = Date.now();
+    toast('🛌 检测到长时间无操作，语音已断开');
+    leaveVoice();
+  } else if (state.voiceIdlePaused && idleMs < IDLE_AFK_TIMEOUT
+             && Date.now() - state.voiceIdlePauseAt >= IDLE_CHECK_INTERVAL) {
+    // 已回到电脑前：非阅读阶段自动重连（阅读阶段由 handleVoiceStage 在切阶段时接入）
+    state.voiceIdlePaused = false;
+    if (state.room && state.room.stage !== 'reading' && !joined) {
+      toast('👋 检测到活动，语音自动重连');
+      connectVoiceIfPossible();
+    }
+  }
+}
+
 function syncVoice() {
   const me = state.me;
   const canSpeak = !!(me && me.seat >= 0 && !me.muted);
@@ -1280,6 +1354,8 @@ function bindEvents() {
       bgmAudioEl.addEventListener(ev, updateBgmProgress));
   }
   $('btn-set-voice').onclick = async () => {
+    state.voiceStagePause = false;   // 手动断开/重连后，不再由阶段自动断/连
+    state.voiceIdlePaused = false;   // 手动操作后恢复由挂机检测管理
     if (state.rtc.adapter && state.rtc.adapter.joined) { await leaveVoice(); }
     else { const r = await ensureVoice(); if (!r.ok) toast(r.msg); renderVoiceButton(); }
   };
@@ -1326,6 +1402,7 @@ function setupScrollLock() {
 function init() {
   bindEvents();
   setupScrollLock();
+  setupIdleDetect();
   $('login-name').value = state.name;
   refreshRooms();
 }

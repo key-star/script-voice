@@ -13,7 +13,7 @@ from typing import Optional
 MAX_SEATS = 20                          # 普通玩家麦位数（1~20）
 TOTAL_SEATS = MAX_SEATS + 1              # 含 0 麦（DM/主持位）
 MAX_TOTAL_DEFAULT = 50                  # 房间总人数上限（含 OB，固定值，DM 不可调节）
-EMPTY_ROOM_TTL = 5 * 3600               # 房间内无人在线达到该时长后自动删除（秒）
+EMPTY_ROOM_TTL = 30 * 60                # 房间内无人在线达到该时长后自动删除（秒）
 STAGES = {
     'lobby':    {'name': '准备中',   'index': 0},
     'reading':  {'name': '阅读剧本', 'index': 1},
